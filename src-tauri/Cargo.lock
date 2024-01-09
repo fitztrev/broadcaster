@@ -351,6 +351,8 @@ version = "0.0.0"
 dependencies = [
  "oauth2",
  "open 5.0.1",
+ "reqwest",
+ "serde_json",
  "serde_urlencoded",
  "tauri",
  "tauri-build",

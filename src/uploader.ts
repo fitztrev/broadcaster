@@ -4,19 +4,20 @@ import { useQueueStore } from "./stores/queue";
 import { PgnPushResponse } from "./types";
 import { lichessFetch } from "./utils";
 
-export async function startQueueWorker() {
+export async function handleQueue() {
+  console.log("checking queue...");
   const queue = useQueueStore();
+  const toUpload = queue.next();
 
-  while (true) {
-    const toUpload = queue.next();
-
-    if (toUpload) {
-      queue.remove(toUpload);
-      await uploadPgnToLichess(toUpload.roundId, toUpload.path);
-    } else {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-    }
+  if (toUpload) {
+    queue.remove(toUpload);
+    await uploadPgnToLichess(toUpload.roundId, toUpload.path);
+  } else {
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
   }
+
+  queue.ping();
+  // handleQueue();
 }
 
 async function uploadPgnToLichess(roundId: string, path: string) {

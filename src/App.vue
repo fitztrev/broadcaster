@@ -4,7 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import { AccessTokenResponse } from "./types";
 import { useLogStore } from "./stores/logs";
 import { requestNotificationPermission } from "./notify";
-import { startQueueWorker } from "./uploader";
+import { invoke } from "@tauri-apps/api";
 
 const logs = useLogStore();
 const user = useUserStore();
@@ -20,7 +20,11 @@ if (user.isLoggedIn()) {
 
 requestNotificationPermission();
 
-startQueueWorker();
+// handleQueue();
+
+async function addToQueue() {
+  await invoke('add_to_queue', { apiToken: '1', url: '2', files: ['a', 'b']})
+}
 </script>
 
 <template>
@@ -30,6 +34,7 @@ startQueueWorker();
         src="./assets/lichess-white.svg"
         class="w-12 inline-block"
         alt="Lichess logo"
+        @click="addToQueue"
       />
     </router-link>
 

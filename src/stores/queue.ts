@@ -8,6 +8,7 @@ interface UploadQueue {
 
 export const useQueueStore = defineStore("queue", () => {
   const files = ref<Set<string>>(new Set());
+  const heartbeat = ref<number>(0);
 
   const add = (roundId: string, paths: string[]) => {
     for (const path of paths) {
@@ -29,10 +30,15 @@ export const useQueueStore = defineStore("queue", () => {
     return undefined;
   };
 
+  const ping = () => {
+    heartbeat.value = Date.now();
+  }
+
   return {
     files,
     add,
     remove,
     next,
+    ping,
   };
 });
