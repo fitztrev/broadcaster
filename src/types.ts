@@ -54,6 +54,11 @@ interface Game {
   url: string;
 }
 
-export interface PgnPushResponse {
+interface PgnPushResponse {
   moves: number;
+}
+
+export interface PgnPushResult {
+  response: PgnPushResponse;
+  file: string;
 }

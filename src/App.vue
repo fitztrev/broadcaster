@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useUserStore } from "./stores/user";
 import { listen } from "@tauri-apps/api/event";
-import { AccessTokenResponse } from "./types";
+import { AccessTokenResponse, PgnPushResult } from "./types";
 import { useLogStore } from "./stores/logs";
 import { requestNotificationPermission } from "./notify";
 
@@ -11,6 +11,14 @@ const user = useUserStore();
 listen<AccessTokenResponse>("update_access_token", (event) => {
   logs.clear();
   user.setAccessToken(event.payload);
+});
+
+listen<PgnPushResult>("upload_success", (event) => {
+  logs.info(`Uploaded ${event.payload.response.moves} moves - ${event.payload.file}`);
+});
+
+listen<string>("upload_error", (event) => {
+  logs.error(event.payload);
 });
 
 if (user.isLoggedIn()) {

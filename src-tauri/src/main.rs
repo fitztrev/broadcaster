@@ -12,8 +12,8 @@ use std::{
 };
 
 use reqwest::blocking::{Client, RequestBuilder};
-use serde::Deserialize;
-use tauri::{AppHandle, Manager};
+use serde::{Deserialize, Serialize};
+use tauri::Manager;
 
 use crate::oauth::start_oauth_flow;
 
@@ -29,9 +29,15 @@ struct UploadJob {
     api_token: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 struct PgnPushResponse {
     moves: u32,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct PgnPushResult {
+    response: PgnPushResponse,
+    file: String,
 }
 
 fn main() {
@@ -51,16 +57,26 @@ fn main() {
                 drop(queue);
 
                 match next_job {
-                    Some(job) => {
-                        handle_pgn(job)
-                        //
-                    }
+                    Some(job) => match handle_pgn(&job) {
+                        Ok(response) => {
+                            app_handle
+                                .emit_all(
+                                    "upload_success",
+                                    PgnPushResult {
+                                        response,
+                                        file: job.file,
+                                    },
+                                )
+                                .expect("failed to emit event");
+                        }
+                        Err(err) => {
+                            app_handle
+                                .emit_all("upload_error", err)
+                                .expect("failed to emit event");
+                        }
+                    },
                     None => std::thread::sleep(std::time::Duration::from_secs(1)),
                 }
-
-                app_handle
-                    .emit_all("upload-queue-updated", ())
-                    .expect("failed to emit event");
             });
 
             Ok(())
@@ -75,48 +91,44 @@ fn main() {
         .expect("error while running tauri application");
 }
 
-fn handle_pgn(job: UploadJob) {
-    let mut file = match File::open(job.file) {
+fn handle_pgn(job: &UploadJob) -> Result<PgnPushResponse, String> {
+    let mut file = match File::open(&job.file) {
         Ok(file) => file,
-        Err(err) => {
-            println!("Error opening file: {}", err);
-            return;
-        }
+        Err(err) => return Err(err.to_string()),
     };
 
     let mut file_content = String::new();
     if let Err(err) = file.read_to_string(&mut file_content) {
-        println!("Error reading file: {}", err);
-        return;
+        return Err(err.to_string());
     }
 
-    match post_pgn_to_lichess(&job.api_token, &job.url, file_content) {
-        Ok(_) => println!("Successfully pushed PGN file to Lichess"),
-        Err(err) => println!("Error pushing PGN file to Lichess: {}", err),
-    }
+    post_pgn_to_lichess(&job.api_token, &job.url, file_content)
 }
 
 fn post_pgn_to_lichess(
     api_token: &str,
     url: &str,
     pgn_content: String,
-) -> Result<(), reqwest::Error> {
+) -> Result<PgnPushResponse, String> {
     let client = Client::new();
     let request_builder: RequestBuilder = client
         .post(url)
-        .header("Authorization", format!("Bearer {}", api_token))
+        .header("Authorization", format!("Bearer {api_token}"))
         .body(pgn_content);
 
-    let response = request_builder.send()?;
+    let response = match request_builder.send() {
+        Ok(response) => response,
+        Err(err) => return Err(format!("Error sending request: {err}")),
+    };
 
     if response.status().is_success() {
-        let response: PgnPushResponse = response.json()?;
-        println!("response: {:?}", response);
+        match response.json::<PgnPushResponse>() {
+            Ok(response) => Ok(response),
+            Err(err) => Err(format!("Error parsing response: {err}")),
+        }
     } else {
-        println!("Error pushing PGN file to Lichess: {:?}", response);
+        Err(format!("Error pushing PGN file to Lichess: {response:?}"))
     }
-
-    Ok(())
 }
 
 #[tauri::command]
@@ -124,6 +136,7 @@ fn open_path(path: String) {
     open::that_in_background(path);
 }
 
+#[allow(clippy::needless_pass_by_value)]
 #[tauri::command]
 fn add_to_queue(
     state: tauri::State<'_, Arc<Mutex<UploadQueue>>>,

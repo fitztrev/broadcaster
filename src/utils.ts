@@ -161,5 +161,9 @@ export async function add_to_queue(roundId: string, files: string[]) {
 
   const url = `${settings.lichessUrl}/api/broadcast/round/${roundId}/push`;
 
-  await invoke("add_to_queue", { apiToken: user.accessToken?.access_token, url, files });
+  await invoke("add_to_queue", {
+    apiToken: user.accessToken?.access_token,
+    url,
+    files,
+  });
 }
