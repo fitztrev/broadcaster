@@ -4,6 +4,7 @@ import { router } from "../router";
 import { RoundResponse } from "../types";
 import FolderWatcher from "./FolderWatcher.vue";
 import {
+  add_to_queue,
   delayDisplay,
   isSingleGamePgn,
   lichessFetch,
@@ -13,10 +14,8 @@ import {
   timestampToLocalDatetime,
 } from "../utils";
 import { useLogStore } from "../stores/logs";
-import { useQueueStore } from "../stores/queue";
 
 const logs = useLogStore();
-const queue = useQueueStore();
 
 const round = ref<RoundResponse | null>(null);
 
@@ -57,7 +56,7 @@ async function uploadExistingFilesInFolder() {
   let files = await recursiveFileList(watchedFolder.value!);
   files = files.filter((file) => isSingleGamePgn(file));
 
-  queue.add(round.value!.round.id, files);
+  await add_to_queue(round.value!.round.id, files);
 
   router.push("/");
 }

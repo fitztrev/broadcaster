@@ -151,3 +151,15 @@ export async function recursiveFileList(folder: string): Promise<string[]> {
 
   return files.reverse();
 }
+
+/**
+ * Add a PGN push to the queue, which will be handled in Rust by the backend.
+ */
+export async function add_to_queue(roundId: string, files: string[]) {
+  const settings = useSettingsStore();
+  const user = useUserStore();
+
+  const url = `${settings.lichessUrl}/api/broadcast/round/${roundId}/push`;
+
+  await invoke("add_to_queue", { apiToken: user.accessToken?.access_token, url, files });
+}

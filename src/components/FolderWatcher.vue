@@ -2,11 +2,9 @@
 import { open } from "@tauri-apps/api/dialog";
 import { DebouncedEvent, watch } from "tauri-plugin-fs-watch-api";
 import { useLogStore } from "../stores/logs";
-import { useQueueStore } from "../stores/queue";
-import { isSingleGamePgn } from "../utils";
+import { add_to_queue, isSingleGamePgn } from "../utils";
 
 const logs = useLogStore();
-const queue = useQueueStore();
 
 const props = defineProps<{
   roundId: string;
@@ -38,7 +36,7 @@ async function startWatchingFolder(path: string) {
   });
 }
 
-function handleFolderChange(events: DebouncedEvent) {
+async function handleFolderChange(events: DebouncedEvent) {
   const files = events
     .filter((event) => event.kind === "Any")
     .filter((event) => isSingleGamePgn(event.path))
@@ -48,7 +46,7 @@ function handleFolderChange(events: DebouncedEvent) {
     return;
   }
 
-  queue.add(props.roundId, files);
+  await add_to_queue(props.roundId, files);
 
   const paths = files.map((file) => file.split("/").pop());
   logs.info(`Modified: ${paths.join(", ")}`);

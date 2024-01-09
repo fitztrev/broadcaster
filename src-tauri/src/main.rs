@@ -100,6 +100,9 @@ fn post_pgn_to_lichess(
 
     let response = request_builder.send()?;
 
+    // print the response body
+    println!("{:#?}", response.text()?);
+
     Ok(())
 }
 
