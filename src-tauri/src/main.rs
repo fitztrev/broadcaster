@@ -12,7 +12,8 @@ use std::{
 };
 
 use reqwest::blocking::{Client, RequestBuilder};
-use tauri::Manager;
+use serde::Deserialize;
+use tauri::{AppHandle, Manager};
 
 use crate::oauth::start_oauth_flow;
 
@@ -26,6 +27,11 @@ struct UploadJob {
     file: String,
     url: String,
     api_token: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct PgnPushResponse {
+    moves: u32,
 }
 
 fn main() {
@@ -45,7 +51,10 @@ fn main() {
                 drop(queue);
 
                 match next_job {
-                    Some(job) => handle_pgn(&job.api_token, &job.url, &job.file),
+                    Some(job) => {
+                        handle_pgn(job)
+                        //
+                    }
                     None => std::thread::sleep(std::time::Duration::from_secs(1)),
                 }
 
@@ -66,8 +75,8 @@ fn main() {
         .expect("error while running tauri application");
 }
 
-fn handle_pgn(api_token: &str, url: &str, file: &str) {
-    let mut file = match File::open(file) {
+fn handle_pgn(job: UploadJob) {
+    let mut file = match File::open(job.file) {
         Ok(file) => file,
         Err(err) => {
             println!("Error opening file: {}", err);
@@ -81,9 +90,9 @@ fn handle_pgn(api_token: &str, url: &str, file: &str) {
         return;
     }
 
-    match post_pgn_to_lichess(api_token, url, file_content) {
-        Ok(_) => println!("PGN file successfully pushed to Lichess!"),
-        Err(err) => eprintln!("Error pushing PGN file to Lichess: {}", err),
+    match post_pgn_to_lichess(&job.api_token, &job.url, file_content) {
+        Ok(_) => println!("Successfully pushed PGN file to Lichess"),
+        Err(err) => println!("Error pushing PGN file to Lichess: {}", err),
     }
 }
 
@@ -100,8 +109,12 @@ fn post_pgn_to_lichess(
 
     let response = request_builder.send()?;
 
-    // print the response body
-    println!("{:#?}", response.text()?);
+    if response.status().is_success() {
+        let response: PgnPushResponse = response.json()?;
+        println!("response: {:?}", response);
+    } else {
+        println!("Error pushing PGN file to Lichess: {:?}", response);
+    }
 
     Ok(())
 }
